@@ -4,6 +4,12 @@ Script to download and clean video transcripts using yt-dlp.
 Takes a video URL as a command line argument, downloads the auto-generated subtitles
 in VTT format, and automatically cleans them by removing timestamps and metadata,
 producing a clean text file with just the transcript content.
+
+Enhanced with advanced processing features:
+- Text deduplication and cleaning
+- Paragraph segmentation
+- Automatic heading generation
+- Optional speaker diarization
 """
 
 import sys
@@ -13,6 +19,14 @@ import os
 import re
 from urllib.parse import urlparse
 import glob
+
+# Import advanced processor if available
+try:
+    from advanced_processor import AdvancedTranscriptProcessor
+    ADVANCED_PROCESSING_AVAILABLE = True
+except ImportError:
+    ADVANCED_PROCESSING_AVAILABLE = False
+    print("ℹ️ Advanced processing not available. Install required packages for enhanced features.")
 
 
 def clean_vtt_file(vtt_file_path):
@@ -131,20 +145,24 @@ def sanitize_filename(url):
     return filename
 
 
-def download_transcript(video_url):
+def download_transcript(video_url, enable_advanced=False, audio_file_path=None):
     """
     Download transcript using yt-dlp command.
     
     Args:
         video_url (str): The URL of the video to download transcript from
+        enable_advanced (bool): Whether to apply advanced processing
+        audio_file_path (str): Optional path to audio file for diarization
     """
     try:
-        # Get current directory
+        # Get current directory and create transcription folder
         current_dir = os.getcwd()
+        transcription_dir = os.path.join(current_dir, 'transcription')
+        os.makedirs(transcription_dir, exist_ok=True)
         
         # Create suitable filename
         base_filename = sanitize_filename(video_url)
-        output_path = os.path.join(current_dir, base_filename)
+        output_path = os.path.join(transcription_dir, base_filename)
         
         # Construct the yt-dlp command
         cmd = [
@@ -157,7 +175,7 @@ def download_transcript(video_url):
         ]
         
         print(f"Running command: {' '.join(cmd)}")
-        print(f"Output will be saved to: {output_path}.vtt")
+        print(f"Output will be saved to transcription folder: {output_path}.vtt")
         
         # Run the command
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -169,16 +187,56 @@ def download_transcript(video_url):
             vtt_files = glob.glob(f"{output_path}*.vtt")
             
             if vtt_files:
-                print(f"� Original VTT file(s) preserved: {', '.join(vtt_files)}")
+                print(f"📄 Original VTT file(s) in transcription folder: {', '.join(os.path.basename(f) for f in vtt_files)}")
                 
                 # Clean each VTT file and save to separate cleaned file
                 for vtt_file in vtt_files:
-                    print(f"🧹 Processing VTT file: {vtt_file}")
+                    print(f"🧹 Processing VTT file: {os.path.basename(vtt_file)}")
                     cleaned_file = clean_vtt_file(vtt_file)
                     
                     if cleaned_file:
-                        print(f"✨ Cleaned transcript saved to separate file: {cleaned_file}")
-                        print(f"📋 Original VTT file unchanged: {vtt_file}")
+                        print(f"✨ Cleaned transcript saved: {os.path.basename(cleaned_file)}")
+                        print(f"📋 Original VTT file unchanged: {os.path.basename(vtt_file)}")
+                        
+                        # Apply advanced processing if requested
+                        if enable_advanced and ADVANCED_PROCESSING_AVAILABLE:
+                            try:
+                                print("🚀 Starting advanced processing...")
+                                processor = AdvancedTranscriptProcessor()
+                                
+                                # Read cleaned text
+                                with open(cleaned_file, 'r', encoding='utf-8') as f:
+                                    transcript_text = f.read()
+                                
+                                # Process with or without audio
+                                if audio_file_path and os.path.exists(audio_file_path):
+                                    print(f"🎤 Processing with audio diarization: {audio_file_path}")
+                                    segments = processor.process_with_audio_diarization(audio_file_path, transcript_text)
+                                else:
+                                    print("📝 Processing text without diarization")
+                                    segments = processor.process_text_only(transcript_text)
+                                
+                                # Save advanced processed version
+                                base_name = os.path.splitext(cleaned_file)[0]
+                                advanced_file = f"{base_name}_advanced.md"
+                                processor.save_processed_transcript(segments, advanced_file)
+                                
+                                print(f"🎉 Advanced processing complete!")
+                                print(f"📊 Generated {len(segments)} segments with headings")
+                                print(f"📁 Advanced transcript: {os.path.basename(advanced_file)}")
+                                print(f"📂 All files saved to: transcription/ folder")
+                                
+                                # Check for speakers
+                                speakers = set(s.speaker for s in segments if s.speaker)
+                                if speakers:
+                                    print(f"🎤 Detected {len(speakers)} speakers: {', '.join(speakers)}")
+                                
+                            except Exception as e:
+                                print(f"❌ Advanced processing failed: {e}")
+                                print("📋 Basic cleaned transcript is still available.")
+                        
+                        elif enable_advanced:
+                            print("⚠️ Advanced processing requested but not available. Install required packages.")
                     else:
                         print(f"❌ Failed to create cleaned version of: {vtt_file}")
             else:
@@ -211,13 +269,22 @@ def download_transcript(video_url):
 def main():
     """Main function to handle command line arguments and download transcript."""
     parser = argparse.ArgumentParser(
-        description='Download and clean video transcripts using yt-dlp.',
-        epilog='Example: python download_transcript.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ"\n'
-               'This will create both a .vtt file and a cleaned .txt file.'
+        description='Download and clean video transcripts using yt-dlp with optional advanced processing.',
+        epilog='Example: python download_transcript.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --advanced\n'
+               'This will create both a .vtt file, a cleaned .txt file, and an advanced .md file.'
     )
     parser.add_argument(
         'video_url',
         help='URL of the video to download transcript from'
+    )
+    parser.add_argument(
+        '--advanced', 
+        action='store_true', 
+        help='Enable advanced processing (paragraph segmentation, heading generation)'
+    )
+    parser.add_argument(
+        '--audio-file',
+        help='Path to audio file for speaker diarization (requires advanced processing)'
     )
     
     args = parser.parse_args()
@@ -227,7 +294,16 @@ def main():
         print("❌ Error: Please provide a valid URL starting with http:// or https://", file=sys.stderr)
         sys.exit(1)
     
-    download_transcript(args.video_url)
+    # Check advanced processing requirements
+    if args.advanced and not ADVANCED_PROCESSING_AVAILABLE:
+        print("❌ Error: Advanced processing requested but required packages not available.")
+        print("Install with: pip install -r requirements.txt")
+        sys.exit(1)
+    
+    if args.audio_file and not args.advanced:
+        print("⚠️ Audio file specified but advanced processing not enabled. Use --advanced flag.")
+    
+    download_transcript(args.video_url, args.advanced, args.audio_file)
 
 
 if __name__ == '__main__':
