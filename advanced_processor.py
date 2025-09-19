@@ -448,10 +448,16 @@ def main():
     if args.output:
         output_path = args.output
     else:
-        # Create transcription folder if it doesn't exist
-        current_dir = os.path.dirname(os.path.abspath(args.input_file))
-        transcription_dir = os.path.join(current_dir, 'transcription')
-        os.makedirs(transcription_dir, exist_ok=True)
+        # Check if input is already in transcription folder
+        input_file_abs = os.path.abspath(args.input_file)
+        if 'transcription' in input_file_abs:
+            # If input is already in transcription folder, use that folder
+            transcription_dir = os.path.dirname(input_file_abs)
+        else:
+            # If input is not in transcription folder, create one
+            current_dir = os.path.dirname(input_file_abs)
+            transcription_dir = os.path.join(current_dir, 'transcription')
+            os.makedirs(transcription_dir, exist_ok=True)
         
         # Generate output filename in transcription folder
         input_basename = os.path.basename(args.input_file)

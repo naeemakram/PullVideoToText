@@ -90,9 +90,15 @@ def process_transcript_simple(input_file, output_file=None):
     # Determine output file and create transcription folder
     if not output_file:
         # Create transcription folder
-        current_dir = os.path.dirname(os.path.abspath(input_file))
-        transcription_dir = os.path.join(current_dir, 'transcription')
-        os.makedirs(transcription_dir, exist_ok=True)
+        input_file_abs = os.path.abspath(input_file)
+        if 'transcription' in input_file_abs:
+            # If input is already in transcription folder, use that folder
+            transcription_dir = os.path.dirname(input_file_abs)
+        else:
+            # If input is not in transcription folder, create one
+            current_dir = os.path.dirname(input_file_abs)
+            transcription_dir = os.path.join(current_dir, 'transcription')
+            os.makedirs(transcription_dir, exist_ok=True)
         
         # Generate output filename in transcription folder
         input_basename = os.path.basename(input_file)

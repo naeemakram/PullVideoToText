@@ -51,7 +51,7 @@ pip install pyannote-audio==3.1.1 torchaudio>=0.9.0
 python download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-This creates:
+This creates files in the `transcription/` folder:
 - `transcript_VIDEO_ID.en.vtt` - Original VTT file
 - `transcript_VIDEO_ID.en_cleaned.txt` - Cleaned text transcript
 
@@ -61,7 +61,7 @@ This creates:
 python download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID" --advanced
 ```
 
-This creates all the above files PLUS:
+This creates all the above files in `transcription/` folder PLUS:
 - `transcript_VIDEO_ID.en_cleaned_advanced.md` - Enhanced markdown with paragraphs and headings
 
 ### Advanced Processing with Speaker Diarization
@@ -77,11 +77,13 @@ This includes speaker identification in the output.
 You can also process existing cleaned transcript files directly:
 
 ```bash
-python advanced_processor.py transcript_file_cleaned.txt
+python advanced_processor.py transcription/transcript_file_cleaned.txt
 ```
 
+This will automatically save the output to the `transcription/` folder.
+
 Options:
-- `-o output.md` - Specify output file
+- `-o output.md` - Specify custom output file path
 - `-a audio.wav` - Add speaker diarization
 - `--max-sentences 5` - Control paragraph size
 
@@ -164,14 +166,17 @@ Here's the thing nobody talks about. Being smart might actually be the reason yo
 
 ## File Structure
 
-After processing, you'll have:
+After processing, you'll have organized files in the `transcription/` folder:
 
 ```
-transcript_VIDEO_ID.en.vtt              # Original VTT with timestamps
-transcript_VIDEO_ID.en_cleaned.txt      # Basic cleaned text  
-transcript_VIDEO_ID.en_cleaned_advanced.md  # Enhanced markdown
-models/                                 # Cached AI models
+transcription/
+├── transcript_VIDEO_ID.en.vtt                    # Original VTT with timestamps
+├── transcript_VIDEO_ID.en_cleaned.txt            # Basic cleaned text  
+└── transcript_VIDEO_ID.en_cleaned_advanced.md    # Enhanced markdown
+models/                                           # Cached AI models (created automatically)
 ```
+
+All transcript-related files are kept organized in the dedicated `transcription/` folder, keeping your main project directory clean.
 
 ## Customization
 
